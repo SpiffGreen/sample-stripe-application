@@ -1,0 +1,36 @@
+{
+  "name": "try-stripe-connect",
+  "module": "index.ts",
+  "type": "module",
+  "scripts": {
+    "dev": "bun --watch index.ts",
+    "db:seed": "bun migrations/scripts/run-seed.ts",
+    "db:migrate": "bun ./migrations/scripts/migrate.ts",
+    "db:migrate:undo": "drizzle-kit drop",
+    "db:migrate:generate": "drizzle-kit generate",
+    "db:push": "drizzle-kit push:pg"
+  },
+  "proxy": "http://localhost:4242",
+  "devDependencies": {
+    "@types/bun": "latest",
+    "drizzle-kit": "^0.23.2"
+  },
+  "peerDependencies": {
+    "typescript": "^5.0.0"
+  },
+  "dependencies": {
+    "@libsql/client": "^0.8.1",
+    "@types/bcryptjs": "^2.4.6",
+    "@types/express": "^4.17.21",
+    "@types/jsonwebtoken": "^9.0.6",
+    "@types/morgan": "^1.9.9",
+    "bcryptjs": "^2.4.3",
+    "better-sqlite3": "^11.1.2",
+    "dotenv": "^16.4.5",
+    "drizzle-orm": "^0.32.2",
+    "express": "^4.19.2",
+    "jsonwebtoken": "^9.0.2",
+    "morgan": "^1.10.0",
+    "stripe": "^16.6.0"
+  }
+}
