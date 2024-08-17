@@ -22,6 +22,27 @@
       "when": 1723706886545,
       "tag": "0002_lame_vin_gonzales",
       "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "6",
+      "when": 1723863067640,
+      "tag": "0003_easy_bill_hollister",
+      "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "6",
+      "when": 1723863382615,
+      "tag": "0004_messy_fat_cobra",
+      "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "6",
+      "when": 1723865630126,
+      "tag": "0005_large_thunderball",
+      "breakpoints": true
     }
   ]
 }

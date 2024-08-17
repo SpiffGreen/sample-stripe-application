@@ -6,7 +6,11 @@ import {
   InternalServerErrorException,
 } from "../helpers/exceptions.helper";
 import { db } from "../utils/db.util";
-import { paymentIntentsTable, transactionsTable } from "../migrations/schema";
+import {
+  cartTable,
+  paymentIntentsTable,
+  transactionsTable,
+} from "../migrations/schema";
 import { HttpTransaction } from "@libsql/client/http";
 import { and, eq } from "drizzle-orm";
 
@@ -69,8 +73,19 @@ export async function verifyWebhook(
         await stripeService.handlePaymentIntentSucceeded(paymentIntent);
         break;
       case "checkout.session.completed":
-        console.log(event.data.object);
-        console.log("Check complete");
+        const cartSession = await db.query.cartTable.findFirst({
+          where: eq(cartTable.sessionId, event.data.object.id),
+        });
+        if (!cartSession) throw new BadRequestException();
+
+        // Do some additional check for the amount
+
+        await db
+          .update(cartTable)
+          .set({
+            status: "done",
+          })
+          .where(eq(cartTable.id, cartSession.id));
         break;
     }
     return res.json({ received: true });
@@ -139,6 +154,11 @@ export async function createCheckoutSession(
       cancelUrl: req.body.cancelUrl,
       userEmail: req.user?.email ?? "",
     });
+    await db.insert(cartTable).values({
+      userId: req.user?.sub ?? 0,
+      products: req.body.products as stripeService.CartItem[],
+      sessionId: session.id,
+    });
     return res.json({
       success: true,
       message: "Created checkout session",
@@ -146,6 +166,30 @@ export async function createCheckoutSession(
     });
   } catch (error) {
     if (error instanceof HttpTransaction) return next(error);
-    next(new InternalServerErrorException());
+    next(new InternalServerErrorException("Could not create "));
+  }
+}
+
+export async function setupPayout(
+  req: express.Request,
+  res: express.Response,
+  next: express.NextFunction
+) {
+  try {
+    if(!req.file) throw new BadRequestException("Please provide file");
+    const response = await stripeService.createConnectedAccount({
+      email: req.user?.email ?? "",
+      ip: req.socket.remoteAddress ?? req.ip,
+      file: req.file?.buffer,
+    });
+    console.log(response);
+    return res.json({
+      success: true,
+      message: "Successfully setup Payout info",
+      data: response,
+    });
+  } catch (error) {
+    if (error instanceof HttpException) return next(error);
+    next(new InternalServerErrorException("Could not setup account"));
   }
 }

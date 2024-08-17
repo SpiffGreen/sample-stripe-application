@@ -22,8 +22,6 @@ export async function getProfile(req: Request, res: Response) {
     orderBy: desc(transactionsTable.id),
   });
 
-  console.log(lastTransaction);
-
   user!.balance = lastTransaction?.balance ?? 0;
   return res.json({
     success: true,

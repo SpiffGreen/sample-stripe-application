@@ -26,13 +26,14 @@ function DashboardBuyProduct() {
       successUrl: window.location.origin + "/dashboard",
       cancelUrl: window.location.origin + "/",
     };
-    const headers = {
-      "Content-Type": "application/json",
-    };
 
-    const response = await axios.post("/api/payments/create-checkout-session", body, {
-      headers: headers,
-    });
+    const response = await axios.post(
+      "/api/payments/create-checkout-session",
+      body,
+      {
+        headers: { Authorization: "Bearer " + localStorage.getItem("tid") },
+      }
+    );
 
     if (response.status !== 200) {
       alert("Sorry an error occured");

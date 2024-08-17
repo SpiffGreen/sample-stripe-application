@@ -5,6 +5,7 @@ type User = {
   email: string;
   name: string;
   balance: number;
+  stripeConnectedAccount: string | null;
 };
 
 type AppStoreData = {

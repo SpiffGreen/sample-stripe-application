@@ -1,11 +1,17 @@
 import Stripe from "stripe";
 import { db } from "../utils/db.util";
-import { paymentIntentsTable, transactionsTable } from "../migrations/schema";
+import {
+  paymentIntentsTable,
+  transactionsTable,
+  usersTable,
+} from "../migrations/schema";
 import { and, desc, eq } from "drizzle-orm";
+import { BadRequestException } from "./exceptions.helper";
+import type { FileBlob } from "bun";
 
 export const stripe = new Stripe(process.env.STRIPE_SECRET as string);
 
-type CartItem = {
+export type CartItem = {
   productName: string;
   productId: string;
   price: number;
@@ -39,26 +45,98 @@ export const createPaymentIntent = async (amount: number) => {
   return paymentIntent.client_secret;
 };
 
+// #region Create connected account
+
 export const createConnectedAccount = async (payload: {
   email: string;
-}): Promise<string> => {
-  const response = await stripe.accounts.create({
-    email: payload.email,
-    country: "",
-    controller: {
-      losses: {
-        payments: "application",
+  ip: string | undefined;
+  file: Buffer;
+}) => {
+  try {
+    // Upload the verification document to Stripe
+    const frontID = await stripe.files.create({
+      file: {
+        type: "application.octet-stream",
+        name: `${crypto.randomUUID()}.jpg`,
+        data: payload.file,
       },
-      fees: {
-        payer: "application",
+      purpose: "identity_document", // Purpose for the file upload
+    });
+
+    const response = await stripe.accounts.create({
+      email: payload.email,
+      type: "custom",
+      country: "CA", // Canada
+      // controller: {
+      //   fees: { payer: "application" },
+      //   losses: { payments: "application" },
+      // },
+      business_profile: {
+        product_description: "Sale of motor parts",
       },
-      stripe_dashboard: {
-        type: "express",
+      capabilities: {
+        transfers: { requested: true },
       },
-    },
-  });
-  return response.id;
+      // external_account: data.bankToken,
+      business_type: "individual",
+      individual: {
+        dob: {
+          day: 23,
+          month: 2,
+          year: 2000,
+        },
+        address: {
+          city: "Toronto",
+          line1: "123 Maple Street",
+          postal_code: "M5A 1A1",
+          state: "ON", // Ontario
+        },
+        email: payload.email, // Assuming payload.email is provided
+        first_name: "John",
+        last_name: "Doe",
+        phone: "+1 416-555-1234", // Example Canadian phone number
+        id_number: "123456789", // Example of a Canadian driver's license number or SIN
+        verification: {
+          document: {
+            front: frontID.id,
+            // back: backID.id,
+          },
+        },
+      },
+      external_account: {
+        object: "bank_account",
+        country: "CA",
+        currency: "CAD",
+        account_holder_name: `John Doe`,
+        account_holder_type: "individual",
+        routing_number: "11000-000", // https://docs.stripe.com/connect/testing#account-numbers
+        // routing_number: "21323-003", // Example fake routing number
+        account_number: "000123456789", // Example account number
+        // account_number: "9487249838323", // Fake account number
+      },
+      tos_acceptance: {
+        date: Math.floor(Date.now() / 1000),
+        ip: payload.ip,
+      },
+    });
+
+    await db
+      .update(usersTable)
+      .set({
+        stripeConnectedAccount: response.id,
+      })
+      .where(eq(usersTable.email, payload.email));
+
+    return response;
+  } catch (error: any) {
+    if (error.type && error.type === "StripeInvalidRequestError") {
+      throw new BadRequestException(error.message.split(".")[0]); // Getting the first sentence rips off the stripe content.
+    }
+    throw error;
+  }
 };
+
+// #endregion
 
 export const transferToConnectedAccount = async (payload: {
   amount: number;
@@ -132,9 +210,12 @@ export async function handlePaymentIntentSucceeded(
     paymentIntent: intentRecord.paymentIntent,
   });
 
-  await db.update(paymentIntentsTable).set({
-    status: "done",
-  });
+  await db
+    .update(paymentIntentsTable)
+    .set({
+      status: "done",
+    })
+    .where(eq(paymentIntentsTable.id, intentRecord.id));
 }
 
 export const createCheckoutSession = async (payload: {
