@@ -6,7 +6,8 @@ import HomePage from "./pages/HomePage";
 import SigninPage from "./pages/SigninPage";
 import SignupPage from "./pages/SignupPage";
 import DashboardPage from "./pages/DashboardPage";
-import FundWallet from "./components/FundWallet";
+import Withdraw from "./pages/Withdraw";
+import FundWallet from "./pages/FundWallet";
 import DashboardLayout from "./layouts/DashboardLayout";
 import AuthLayout from "./layouts/AuthLayout";
 import DashboardHistory from "./pages/DashboardHistory";
@@ -52,6 +53,14 @@ const router = createBrowserRouter([
     element: (
       <DashboardLayout>
         <DashboardBuyProduct />
+      </DashboardLayout>
+    ),
+  },
+  {
+    path: "/dashboard/withdraw",
+    element: (
+      <DashboardLayout>
+        <Withdraw />
       </DashboardLayout>
     ),
   },

@@ -41,4 +41,10 @@ userRouter.post(
   paymentController.setupPayout
 );
 
+userRouter.post(
+  "/cashout",
+  auth,
+  paymentController.cashout
+);
+
 export default userRouter;

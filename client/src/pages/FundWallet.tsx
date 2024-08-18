@@ -4,7 +4,7 @@ import {
   StripeElementsOptionsClientSecret,
 } from "@stripe/stripe-js";
 import { useState, useEffect } from "react";
-import CheckoutForm from "./CheckoutForm";
+import CheckoutForm from "../components/CheckoutForm";
 import axios from "axios";
 
 const stripePromise = loadStripe(import.meta.env.VITE_STRIPE_PK);

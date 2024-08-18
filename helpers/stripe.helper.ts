@@ -54,7 +54,10 @@ export const createConnectedAccount = async (payload: {
 }) => {
   try {
     // Upload the verification document to Stripe
-    const frontID = await stripe.files.create({
+    let frontID = {
+      id: "",
+    };
+    frontID = await stripe.files.create({
       file: {
         type: "application.octet-stream",
         name: `${crypto.randomUUID()}.jpg`,
@@ -67,17 +70,14 @@ export const createConnectedAccount = async (payload: {
       email: payload.email,
       type: "custom",
       country: "CA", // Canada
-      // controller: {
-      //   fees: { payer: "application" },
-      //   losses: { payments: "application" },
-      // },
       business_profile: {
         product_description: "Sale of motor parts",
+        url: "https://namecheap.com/about",
+        mcc: "5013", // https://stripe.com/guides/merchant-category-codes, https://docs.stripe.com/issuing/categories
       },
       capabilities: {
         transfers: { requested: true },
       },
-      // external_account: data.bankToken,
       business_type: "individual",
       individual: {
         dob: {
@@ -91,6 +91,9 @@ export const createConnectedAccount = async (payload: {
           postal_code: "M5A 1A1",
           state: "ON", // Ontario
         },
+        relationship: {
+          title: "Seller",
+        },
         email: payload.email, // Assuming payload.email is provided
         first_name: "John",
         last_name: "Doe",
@@ -98,6 +101,10 @@ export const createConnectedAccount = async (payload: {
         id_number: "123456789", // Example of a Canadian driver's license number or SIN
         verification: {
           document: {
+            front: frontID.id,
+            // back: backID.id,
+          },
+          additional_document: {
             front: frontID.id,
             // back: backID.id,
           },
@@ -137,19 +144,6 @@ export const createConnectedAccount = async (payload: {
 };
 
 // #endregion
-
-export const transferToConnectedAccount = async (payload: {
-  amount: number;
-  accountId: string;
-}): Promise<string> => {
-  const transfer = await stripe.transfers.create({
-    amount: 1000,
-    currency: "cad",
-    destination: "{{CONNECTED_STRIPE_ACCOUNT_ID}}",
-  });
-
-  return transfer.id;
-};
 
 export async function handlePaymentIntentSucceeded(
   paymentIntent: Stripe.PaymentIntent
@@ -235,3 +229,13 @@ export const createCheckoutSession = async (payload: {
 
   return session;
 };
+
+export const withdrawToConnectedAccount = async (payload: {stripeConnectId: string, amount: number}) => {
+  const transfer = await stripe.transfers.create({
+    amount: payload.amount,
+    currency: 'cad',
+    destination: payload.stripeConnectId,
+  });
+
+  return transfer;
+}

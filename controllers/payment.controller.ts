@@ -10,9 +10,10 @@ import {
   cartTable,
   paymentIntentsTable,
   transactionsTable,
+  usersTable,
 } from "../migrations/schema";
 import { HttpTransaction } from "@libsql/client/http";
-import { and, eq } from "drizzle-orm";
+import { and, desc, eq } from "drizzle-orm";
 
 export async function createPaymentIntent(
   req: express.Request,
@@ -176,20 +177,71 @@ export async function setupPayout(
   next: express.NextFunction
 ) {
   try {
-    if(!req.file) throw new BadRequestException("Please provide file");
+    if (!req.file) throw new BadRequestException("Please provide file");
     const response = await stripeService.createConnectedAccount({
       email: req.user?.email ?? "",
       ip: req.socket.remoteAddress ?? req.ip,
       file: req.file?.buffer,
     });
-    console.log(response);
     return res.json({
       success: true,
       message: "Successfully setup Payout info",
-      data: response,
+      data: response.id,
     });
   } catch (error) {
     if (error instanceof HttpException) return next(error);
     next(new InternalServerErrorException("Could not setup account"));
   }
 }
+
+export const cashout = async (
+  req: express.Request,
+  res: express.Response,
+  next: express.NextFunction
+) => {
+  try {
+    const { amount } = req.body;
+    if (!amount) throw new BadRequestException("Please provide amount");
+    const lastTransaction = await db.query.transactionsTable.findFirst({
+      where: and(
+        eq(transactionsTable.userId, req.user!.sub),
+        eq(transactionsTable.status, "done")
+      ),
+      orderBy: desc(transactionsTable.id),
+    });
+
+    if ((lastTransaction?.balance || 0) < amount)
+      throw new BadRequestException("Insufficient funds");
+
+    const user = await db.query.usersTable.findFirst({
+      where: eq(usersTable.id, req.user!.sub),
+    });
+    if (!user) throw new BadRequestException();
+    if (!user.stripeConnectedAccount)
+      throw new BadRequestException("Please setup your account first");
+
+    const transfer = await stripeService.withdrawToConnectedAccount({
+      stripeConnectId: user.stripeConnectedAccount,
+      amount,
+    });
+
+    await db.insert(transactionsTable).values({
+      amount,
+      balance: Number(lastTransaction?.balance) - amount,
+      summary: "Withdraw funds",
+      userId: user.id,
+      paymentIntent: transfer.id,
+      status: "done",
+    });
+
+    return res.json({
+      success: true,
+      message: "Transfer in progress",
+      data: transfer,
+    });
+  } catch (error) {
+    console.log(error);
+    if (error instanceof HttpException) return next(error);
+    next(new InternalServerErrorException("Withdrawal failed"));
+  }
+};

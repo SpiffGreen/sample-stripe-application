@@ -36,8 +36,10 @@ function DashboardPage() {
       if (response.status.toString().startsWith("2")) {
         // Set user
         console.log(response.data);
+        window.location.reload();
       } else {
         console.log(response);
+        alert("There might be an issue");
       }
     } catch (error: any) {
       alert(
@@ -70,9 +72,12 @@ function DashboardPage() {
               >
                 Fund Wallet
               </Link>
-              <button className="bg-red-500 rounded px-3 py-1 text-nowrap">
+              <Link
+                to="/dashboard/withdraw"
+                className="bg-red-500 rounded px-3 py-1 text-nowrap"
+              >
                 Request Withdrawal
-              </button>
+              </Link>
               <Link
                 to="/dashboard/history"
                 className="bg-blue-500 rounded px-3 py-1 text-nowrap"
